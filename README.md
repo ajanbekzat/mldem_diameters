@@ -1,0 +1,6 @@
+- poetry init
+- pyenv local 3.7.13
+- poetry env use 3.7.13
+- poetry install
+- HOROVOD_WITHOUT_MPI=0 HOROVOD_WITH_TENSORFLOW=1 pip3 install --no-cache-dir horovod==0.24.2
+- pip install mpi4py
