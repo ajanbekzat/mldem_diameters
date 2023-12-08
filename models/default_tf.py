@@ -1,22 +1,21 @@
-import tensorflow as tf
-import open3d.ml.tf as ml3d
 import numpy as np
+import open3d.ml.tf as ml3d
+import tensorflow as tf
 
 
 class MyParticleNetwork(tf.keras.Model):
-
     def __init__(
         self,
         kernel_size=[4, 4, 4],
         radius_scale=1.5,
-        coordinate_mapping='ball_to_cube_volume_preserving',
-        interpolation='linear',
+        coordinate_mapping="ball_to_cube_volume_preserving",
+        interpolation="linear",
         use_window=True,
         normalize=False,
         particle_radius=0,
         timestep=1 / 50,
         filter_scale=6,
-        res_scale=128
+        res_scale=128,
     ):
         super().__init__(name=type(self).__name__)
         self.layer_channels = [32, 64, 64, 3]
@@ -27,16 +26,22 @@ class MyParticleNetwork(tf.keras.Model):
         self.use_window = use_window
         self.particle_radius = particle_radius
         self.filter_scale = filter_scale
-        self.filter_extent = np.float32(self.radius_scale * self.filter_scale *
-                                        self.particle_radius)
+        self.filter_extent = np.float32(
+            self.radius_scale * self.filter_scale * self.particle_radius
+        )
         self.timestep = timestep
         self.res_scale = res_scale
         self.normalize = normalize
 
         self._all_convs = []
-        print("Create model with particle radius of: {:f} filterExtent of {:f} dp timestep={:f}".format(particle_radius,self.filter_extent/self.particle_radius,timestep))
+        print(
+            "Create model with particle radius of: {:f} filterExtent of {:f} dp timestep={:f}".format(
+                particle_radius, self.filter_extent / self.particle_radius, timestep
+            )
+        )
+
         def window_poly6(r_sqr):
-            return tf.clip_by_value((1 - r_sqr)**3, 0, 1)
+            return tf.clip_by_value((1 - r_sqr) ** 3, 0, 1)
 
         def Conv(name, activation=None, **kwargs):
             conv_fn = ml3d.layers.ContinuousConv
@@ -45,38 +50,40 @@ class MyParticleNetwork(tf.keras.Model):
             if self.use_window == True:
                 window_fn = window_poly6
 
-            conv = conv_fn(name=name,
-                           kernel_size=self.kernel_size,
-                           activation=activation,
-                           align_corners=True,
-                           interpolation=self.interpolation,
-                           coordinate_mapping=self.coordinate_mapping,
-                           normalize=self.normalize,
-                           window_function=window_fn,
-                           radius_search_ignore_query_points=True,
-                           **kwargs)
+            conv = conv_fn(
+                name=name,
+                kernel_size=self.kernel_size,
+                activation=activation,
+                align_corners=True,
+                interpolation=self.interpolation,
+                coordinate_mapping=self.coordinate_mapping,
+                normalize=self.normalize,
+                window_function=window_fn,
+                radius_search_ignore_query_points=True,
+                **kwargs
+            )
 
             self._all_convs.append((name, conv))
             return conv
 
-        self.conv0_fluid = Conv(name="conv0_fluid",
-                                filters=self.layer_channels[0],
-                                activation=None)
-        self.conv0_obstacle = Conv(name="conv0_obstacle",
-                                   filters=self.layer_channels[0],
-                                   activation=None)
-        self.dense0_fluid = tf.keras.layers.Dense(name="dense0_fluid",
-                                                  units=self.layer_channels[0],
-                                                  activation=None)
+        self.conv0_fluid = Conv(
+            name="conv0_fluid", filters=self.layer_channels[0], activation=None
+        )
+        self.conv0_obstacle = Conv(
+            name="conv0_obstacle", filters=self.layer_channels[0], activation=None
+        )
+        self.dense0_fluid = tf.keras.layers.Dense(
+            name="dense0_fluid", units=self.layer_channels[0], activation=None
+        )
 
         self.convs = []
         self.denses = []
         for i in range(1, len(self.layer_channels)):
             ch = self.layer_channels[i]
-            dense = tf.keras.layers.Dense(units=ch,
-                                          name="dense{0}".format(i),
-                                          activation=None)
-            conv = Conv(name='conv{0}'.format(i), filters=ch, activation=None)
+            dense = tf.keras.layers.Dense(
+                units=ch, name="dense{0}".format(i), activation=None
+            )
+            conv = Conv(name="conv{0}".format(i), filters=ch, activation=None)
             self.denses.append(dense)
             self.convs.append(conv)
 
@@ -97,13 +104,9 @@ class MyParticleNetwork(tf.keras.Model):
         vel = (pos - pos1) / dt
         return pos, vel
 
-    def compute_correction(self,
-                           pos,
-                           vel,
-                           other_feats,
-                           box,
-                           box_feats,
-                           fixed_radius_search_hash_table=None):
+    def compute_correction(
+        self, pos, vel, other_feats, box, box_feats, fixed_radius_search_hash_table=None
+    ):
         """Expects that the pos and vel has already been updated with gravity and velocity"""
 
         # compute the extent of the filters (the diameter)
@@ -111,20 +114,20 @@ class MyParticleNetwork(tf.keras.Model):
 
         fluid_feats = [tf.ones_like(pos[:, 0:1]), vel]
         if not other_feats is None:
-            other_feats = tf.reshape(other_feats,pos[:, 0:1].shape)
+            other_feats = tf.reshape(other_feats, pos[:, 0:1].shape)
             fluid_feats.append(other_feats)
         fluid_feats = tf.concat(fluid_feats, axis=-1)
 
-        self.ans_conv0_fluid = self.conv0_fluid(fluid_feats, pos, pos,
-                                                filter_extent)
+        self.ans_conv0_fluid = self.conv0_fluid(fluid_feats, pos, pos, filter_extent)
         self.ans_dense0_fluid = self.dense0_fluid(fluid_feats)
-        self.ans_conv0_obstacle = self.conv0_obstacle(box_feats, box, pos,
-                                                      filter_extent)
+        self.ans_conv0_obstacle = self.conv0_obstacle(
+            box_feats, box, pos, filter_extent
+        )
 
-        feats = tf.concat([
-            self.ans_conv0_obstacle, self.ans_conv0_fluid, self.ans_dense0_fluid
-        ],
-                          axis=-1)
+        feats = tf.concat(
+            [self.ans_conv0_obstacle, self.ans_conv0_fluid, self.ans_dense0_fluid],
+            axis=-1,
+        )
 
         self.ans_convs = [feats]
         for conv, dense in zip(self.convs, self.denses):
@@ -140,9 +143,9 @@ class MyParticleNetwork(tf.keras.Model):
         # compute the number of fluid neighbors.
         # this info is used in the loss function during training.
         self.num_fluid_neighbors = ml3d.ops.reduce_subarrays_sum(
-            tf.ones_like(self.conv0_fluid.nns.neighbors_index,
-                         dtype=tf.float32),
-            self.conv0_fluid.nns.neighbors_row_splits)
+            tf.ones_like(self.conv0_fluid.nns.neighbors_index, dtype=tf.float32),
+            self.conv0_fluid.nns.neighbors_row_splits,
+        )
 
         self.last_features = self.ans_convs[-2]
 
@@ -162,9 +165,11 @@ class MyParticleNetwork(tf.keras.Model):
 
         pos2, vel2 = self.integrate_pos_vel(pos, vel)
         pos_correction = self.compute_correction(
-            pos2, vel2, feats, box, box_feats, fixed_radius_search_hash_table)
+            pos2, vel2, feats, box, box_feats, fixed_radius_search_hash_table
+        )
         pos2_corrected, vel2_corrected = self.compute_new_pos_vel(
-            pos, vel, pos2, vel2, pos_correction)
+            pos, vel, pos2, vel2, pos_correction
+        )
 
         return pos2_corrected, vel2_corrected
 
