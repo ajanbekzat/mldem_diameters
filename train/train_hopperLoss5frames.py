@@ -8,6 +8,7 @@ import os
 import sys
 
 import numpy as np
+from dotenv import load_dotenv
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import time
@@ -21,6 +22,7 @@ from evaluate_network import evaluate_tf as evaluate
 
 from data_prep.dataset_reader_physics import read_data_train, read_data_val
 from utils.deeplearningutilities.tf import MyCheckpointManager, Trainer
+
 # from tensorflow.python.client import device_lib
 
 # def get_available_devices():
@@ -44,7 +46,10 @@ hvd.init()
 
 # print("pid={:d}, total processes={:d}".format(hvd.rank(), hvd.size()))
 # the train dir stores all checkpoints and summaries. The dir name is the name of this file without .py
-dataset_path = "/Users/bekzatajan/PhD/Thesis/mldem_rebuilt/data/exp_1_data"
+load_dotenv()
+output_scenes_dir = os.getenv("OUTPUT_SCENES_DIR")
+dataset_path = f"{output_scenes_dir}_data"
+# dataset_path = "/Users/bekzatajan/PhD/Thesis/mldem_rebuilt/data/exp_1_data"
 train_dir = os.path.join(dataset_path, "huinia")
 lluTimeStep = 0.02
 lluFilter = 6
@@ -54,7 +59,6 @@ PARTICLE_RADIUS = 0.025
 #                            'ours_default_data')
 
 val_files = sorted(glob(os.path.join(dataset_path, "valid", "*.zst")))
-print(val_files)
 train_files = sorted(glob(os.path.join(dataset_path, "train", "*.zst")))
 
 _k = 200
@@ -85,6 +89,7 @@ def main():
         num_workers=2,
     )
     data_iter = iter(dataset)
+    breakpoint()
 
     trainer = Trainer(train_dir)
 
@@ -291,4 +296,3 @@ if __name__ == "__main__":
 
     mp.set_start_method("spawn")
     sys.exit(main())
-
