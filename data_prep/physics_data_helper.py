@@ -59,11 +59,14 @@ def mfix_numpy_from_bgeo(path):
     data = points.GetOutput()
     point_data = data.GetPointData()
     n = data.GetNumberOfPoints()
+    diam_arr = np.empty((n))
     pos_arr = np.empty((n, 3))
     vel_arr = np.empty((n, 3))
     rho_arr = np.empty((n))
     # loop over all data arrays
     for i in range(point_data.GetNumberOfArrays()):
+        if(point_data.GetArrayName(i)=='Diameter'):
+            diam=point_data.GetArray(i)        
         if(point_data.GetArrayName(i)=='Density'):
             rou=point_data.GetArray(i)        
         if(point_data.GetArrayName(i)=='Velocity'):
@@ -71,16 +74,18 @@ def mfix_numpy_from_bgeo(path):
   
     #get xyz
     for i in range(n):
+        diam_1 = diam.GetValue(i)
         p = data.GetPoints().GetPoint(i) #p is a tuple with the x,y & z coordinates.
         v = [vel.GetValue(3*i),vel.GetValue(3*i+1),vel.GetValue(3*i+2)]
         rho = rou.GetValue(i)
+        diam_arr[i] = diam_1
         pos_arr[i] = p
         vel_arr[i] = v
         rho_arr[i] = rho
         #if i==0:
         #    print(p,v,rho)
 
-    result = [pos_arr, vel_arr, rho_arr]
+    result = [diam_arr, pos_arr, vel_arr, rho_arr]
     return tuple(result)
 
 def mfix_get_fluid_frame_id_from_bgeo_path(x):

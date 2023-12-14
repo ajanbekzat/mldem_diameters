@@ -1,14 +1,17 @@
 # 1st script
 #!/usr/bin/env python3
 """This script creates compressed records for training the network"""
+import pandas as pd
 import argparse
 import json
 import os
+import shutil
 import sys
 from glob import glob
 
 import numpy as np
 import open3d as o3d
+from dotenv import load_dotenv
 # from create_physics_scenes import PARTICLE_RADIUS
 from physics_data_helper import *
 
@@ -37,12 +40,14 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
     #    with open(os.path.join(scene_dir, 'scene.json'), 'r') as f:
     #        scene_dict = json.load(f)
 
+    # Replace your boundaries by particles
     box, box_normals = stl_to_particles(os.path.join(scene_dir, "geometry.stl"))
 
+    # This is where you vtp files are located
     partio_dir = os.path.join(scene_dir, "PARTIO")
     fluid_ids = ["FLUID0"]  # mfix_get_fluid_ids_from_partio_dir(partio_dir)
-    # print(fluid_ids)
-    num_fluids = len(fluid_ids)
+
+    # Map to the fluid_ids the vtp file names
     fluid_id_bgeo_map = {k: mfix_get_fluid_bgeo_files(partio_dir, k) for k in fluid_ids}
 
     frames = None
@@ -67,6 +72,7 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
     last_max_velocities = [1] * 20
 
     for sublist_i, sublist in enumerate(sublists):
+        print(sublist_i)
         if boring:
             break
         validCase = True
@@ -88,6 +94,7 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
                 feat_dict["frame_id"] = np.int64(frame_i)
                 feat_dict["scene_id"] = scene_id
 
+                diam = []
                 pos = []
                 vel = []
                 mass = []
@@ -97,7 +104,8 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
 
                 for flid in fluid_ids:
                     bgeo_path = fluid_id_bgeo_map[flid][frame_i]
-                    pos_, vel_, density_ = mfix_numpy_from_bgeo(bgeo_path)
+                    diam_, pos_, vel_, density_ = mfix_numpy_from_bgeo(bgeo_path)
+                    diam.append(diam_)
                     pos.append(pos_)
                     vel.append(vel_)
                     viscosity.append(
@@ -111,10 +119,12 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
                     mass.append(density_)
                     sizes[0] += pos_.shape[0]
 
+                diam = np.concatenate(diam, axis=0)
                 pos = np.concatenate(pos, axis=0)
                 vel = np.concatenate(vel, axis=0)
                 mass = np.concatenate(mass, axis=0)
-                mass *= (2 * PARTICLE_RADIUS) ** 3
+                mass = (2 * mass * diam) ** 3
+                # mass *= (2 * PARTICLE_RADIUS) ** 3
                 viscosity = np.concatenate(viscosity, axis=0)
                 if frame_i == 0:
                     np0 = pos_.shape[:][0]
@@ -127,12 +137,26 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
                             )
                         )
                         break
+                feat_dict["diam"] = diam.astype(np.float32)
                 feat_dict["pos"] = pos.astype(np.float32)
                 feat_dict["vel"] = vel.astype(np.float32)
                 feat_dict["m"] = mass.astype(np.float32)
                 feat_dict["viscosity"] = viscosity.astype(np.float32)
-
                 data.append(feat_dict)
+
+            # pos_x, pos_y, pos_z = zip(*feat_dict["pos"])
+            # vel_x, vel_y, vel_z = zip(*feat_dict["vel"])
+            # df = pd.DataFrame({
+            #     'PosX': pos_x,
+            #     'PosY': pos_y,
+            #     'PosZ': pos_z,
+            #     'VelX': vel_x,
+            #     'VelY': vel_y,
+            #     'VelZ': vel_z,
+            #     'Diameter': feat_dict["diam"],
+            #     'Mass': feat_dict["m"]
+            # })
+            # df.to_csv("blabla.csv")
 
             if validCase:
                 create_compressed_msgpack(data, outfilepath)
@@ -152,40 +176,41 @@ def create_compressed_msgpack(data, outfilepath):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Creates compressed msgpacks for directories with SplishSplash scenes"
-    )
-    parser.add_argument(
-        "--output", type=str, required=True, help="The path to the output directory"
-    )
-    parser.add_argument(
-        "--input",
-        type=str,
-        required=True,
-        help="The path to the input directory with the simulation data",
-    )
-    parser.add_argument(
-        "--splits",
-        type=int,
-        default=1,
-        help="The number of files to generate per scene (default=16)",
-    )
+    # Define the paths directly in the script
+    load_dotenv()
+    output_scenes_dir = os.getenv("OUTPUT_SCENES_DIR")
+    output_data_dir = f"{output_scenes_dir}_data"
+    splits = 1
+    train_scene_names_list = ["S01"]
 
-    args = parser.parse_args()
-    os.makedirs(args.output)
+    # Check if the output directory exists and remove it if it does
+    # if os.path.exists(output_data_dir):
+    #     os.removedirs(output_data_dir)
 
-    outdir = args.output
-    print(outdir)
+    # Create the output directory
+    # os.makedirs(output_data_dir)   # print(outdir)
+    if os.path.exists(output_data_dir):
+        shutil.rmtree(output_data_dir)
 
-    scene_dirs = sorted(glob(os.path.join(args.input, "*")))
+    os.makedirs(output_data_dir)
+    train_model_data = f"{output_data_dir}/train"
+    valid_model_data = f"{output_data_dir}/valid"
+    os.makedirs(train_model_data)
+    os.makedirs(valid_model_data)
+
+    scene_dirs = sorted(glob(os.path.join(output_scenes_dir, "*")))
     print(scene_dirs)
 
-    for scene_dir in scene_dirs:
-        print(scene_dir)
+    for scenei, scene_dir in enumerate(scene_dirs):
+
         scene_name = os.path.basename(scene_dir)
-        print(scene_name)
-        outfileprefix = os.path.join(outdir, scene_name)
-        create_scene_files(scene_dir, scene_name, outfileprefix, args.splits)
+        print(f"Scenei: {scene_name}")
+        if scene_name in train_scene_names_list:
+            output_data_trainval = train_model_data
+        else:
+            output_data_trainval = valid_model_data
+        outfileprefix = os.path.join(output_data_trainval, scene_name)
+        create_scene_files(scene_dir, scene_name, outfileprefix, splits)
 
     print("end")
 

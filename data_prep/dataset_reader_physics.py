@@ -121,6 +121,8 @@ def read_data(files=None,
         shuffle=True if shuffle_buffer else False,
         window=window,
     )
+    # for sample in df:
+    #     print(sample)
 
     if repeat:
         df = dataflow.RepeatedData(df, -1)
@@ -138,4 +140,3 @@ def read_data(files=None,
 
     df.reset_state()
     return df
-
