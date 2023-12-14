@@ -177,7 +177,7 @@ def create_compressed_msgpack(data, outfilepath):
 
 def main():
     # Define the paths directly in the script
-    load_dotenv()
+    load_dotenv(dotenv_path="../.env")
     output_scenes_dir = os.getenv("OUTPUT_SCENES_DIR")
     output_data_dir = f"{output_scenes_dir}_data"
     splits = 1
