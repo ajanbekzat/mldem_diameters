@@ -48,11 +48,12 @@ def evaluate_tf(model, val_dataset, frame_skip, fluid_errors=None):
                 gt_pos1 = frames[1]['pos0'][0]
                 gt_pos2 = frames[2]['pos0'][0]
 
-                inputs = (frames[0]['pos0'][0], frames[0]['vel0'][0], None, box,
+                # breakpoint()
+                inputs = (frames[0]['pos0'][0], frames[0]['vel0'][0], frames[0]['m0'][0], box,
                           box_normals)
                 pr_pos1, pr_vel1 = model(inputs)
 
-                inputs = (pr_pos1, pr_vel1, None, box, box_normals)
+                inputs = (pr_pos1, pr_vel1, frames[0]['m0'][0], box, box_normals)
                 pr_pos2, pr_vel2 = model(inputs)
 
                 fluid_errors.add_errors(scene_id, frame0_id, frame1_id, pr_pos1,
@@ -384,4 +385,3 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
-
