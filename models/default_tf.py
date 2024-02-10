@@ -105,7 +105,13 @@ class MyParticleNetwork(tf.keras.Model):
         return pos, vel
 
     def compute_correction(
-        self, pos, vel, other_feats, box, box_feats, fixed_radius_search_hash_table=None
+        self,
+        pos,
+        vel,
+        other_feats,
+        box,
+        box_feats,
+        fixed_radius_search_hash_table=None,
     ):
         """Expects that the pos and vel has already been updated with gravity and velocity"""
 
@@ -113,7 +119,7 @@ class MyParticleNetwork(tf.keras.Model):
         filter_extent = tf.constant(self.filter_extent)
 
         fluid_feats = [tf.ones_like(pos[:, 0:1]), vel]
-        if not other_feats is None:
+        if other_feats is not None:
             other_feats = tf.reshape(other_feats, pos[:, 0:1].shape)
             fluid_feats.append(other_feats)
         fluid_feats = tf.concat(fluid_feats, axis=-1)
