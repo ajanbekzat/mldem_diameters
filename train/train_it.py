@@ -46,10 +46,9 @@ hvd.init()
 
 # print("pid={:d}, total processes={:d}".format(hvd.rank(), hvd.size()))
 # the train dir stores all checkpoints and summaries. The dir name is the name of this file without .py
-load_dotenv()
+load_dotenv(dotenv_path="../.env")
 output_scenes_dir = os.getenv("OUTPUT_SCENES_DIR")
 dataset_path = f"{output_scenes_dir}_data"
-# dataset_path = "/Users/bekzatajan/PhD/Thesis/mldem_rebuilt/data/exp_1_data"
 train_dir = os.path.join(dataset_path, "huinia")
 lluTimeStep = 0.02
 lluFilter = 6
@@ -89,7 +88,6 @@ def main():
         num_workers=2,
     )
     data_iter = iter(dataset)
-    breakpoint()
 
     trainer = Trainer(train_dir)
 
@@ -146,7 +144,7 @@ def main():
                 inputs = [
                     batch["pos0"][batch_i],
                     batch["vel0"][batch_i],
-                    None,
+                    batch["m0"][batch_i],
                     batch["box"][batch_i],
                     batch["box_normals"][batch_i],
                 ]
@@ -160,7 +158,7 @@ def main():
                 inputs = (
                     pr_pos1,
                     pr_vel1,
-                    None,
+                    batch["m1"][batch_i],
                     batch["box"][batch_i],
                     batch["box_normals"][batch_i],
                 )
@@ -173,7 +171,7 @@ def main():
                 inputs = (
                     pr_pos2,
                     pr_vel2,
-                    None,
+                    batch["m2"][batch_i],
                     batch["box"][batch_i],
                     batch["box_normals"][batch_i],
                 )
@@ -186,7 +184,7 @@ def main():
                 inputs = (
                     pr_pos3,
                     pr_vel3,
-                    None,
+                    batch["m3"][batch_i],
                     batch["box"][batch_i],
                     batch["box_normals"][batch_i],
                 )
@@ -199,7 +197,7 @@ def main():
                 inputs = (
                     pr_pos4,
                     pr_vel4,
-                    None,
+                    batch["m4"][batch_i],
                     batch["box"][batch_i],
                     batch["box_normals"][batch_i],
                 )
@@ -257,6 +255,12 @@ def main():
             "pos3",
             "pos4",
             "pos5",
+            "m0",
+            "m1",
+            "m2",
+            "m3",
+            "m4",
+            "m5",
             "box",
             "box_normals",
         ):
