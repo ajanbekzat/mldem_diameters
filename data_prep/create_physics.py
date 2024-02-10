@@ -1,7 +1,6 @@
 # 1st script
 #!/usr/bin/env python3
 """This script creates compressed records for training the network"""
-import pandas as pd
 import argparse
 import json
 import os
@@ -11,6 +10,7 @@ from glob import glob
 
 import numpy as np
 import open3d as o3d
+import pandas as pd
 from dotenv import load_dotenv
 # from create_physics_scenes import PARTICLE_RADIUS
 from physics_data_helper import *
@@ -123,7 +123,8 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
                 pos = np.concatenate(pos, axis=0)
                 vel = np.concatenate(vel, axis=0)
                 mass = np.concatenate(mass, axis=0)
-                mass = (2 * mass * diam) ** 3
+                # mass = (2 * mass * diam) ** 3
+                mass = diam
                 # mass *= (2 * PARTICLE_RADIUS) ** 3
                 viscosity = np.concatenate(viscosity, axis=0)
                 if frame_i == 0:
@@ -137,26 +138,27 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
                             )
                         )
                         break
-                feat_dict["diam"] = diam.astype(np.float32)
+
                 feat_dict["pos"] = pos.astype(np.float32)
                 feat_dict["vel"] = vel.astype(np.float32)
                 feat_dict["m"] = mass.astype(np.float32)
                 feat_dict["viscosity"] = viscosity.astype(np.float32)
+                feat_dict["diam"] = diam.astype(np.float32)
                 data.append(feat_dict)
 
-            # pos_x, pos_y, pos_z = zip(*feat_dict["pos"])
-            # vel_x, vel_y, vel_z = zip(*feat_dict["vel"])
-            # df = pd.DataFrame({
-            #     'PosX': pos_x,
-            #     'PosY': pos_y,
-            #     'PosZ': pos_z,
-            #     'VelX': vel_x,
-            #     'VelY': vel_y,
-            #     'VelZ': vel_z,
-            #     'Diameter': feat_dict["diam"],
-            #     'Mass': feat_dict["m"]
-            # })
-            # df.to_csv("blabla.csv")
+            pos_x, pos_y, pos_z = zip(*feat_dict["pos"])
+            vel_x, vel_y, vel_z = zip(*feat_dict["vel"])
+            df = pd.DataFrame({
+                'PosX': pos_x,
+                'PosY': pos_y,
+                'PosZ': pos_z,
+                'VelX': vel_x,
+                'VelY': vel_y,
+                'VelZ': vel_z,
+                'Diameter': feat_dict["diam"],
+                'Mass': feat_dict["m"]
+            })
+            df.to_csv("blabla.csv")
 
             if validCase:
                 create_compressed_msgpack(data, outfilepath)
@@ -202,7 +204,6 @@ def main():
     print(scene_dirs)
 
     for scenei, scene_dir in enumerate(scene_dirs):
-
         scene_name = os.path.basename(scene_dir)
         print(f"Scenei: {scene_name}")
         if scene_name in train_scene_names_list:
