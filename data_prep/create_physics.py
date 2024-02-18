@@ -57,10 +57,7 @@ def create_scene_files(scene_dir, scene_id, outfileprefix, splits=1):
             frames = list(range(len(v)))
         if len(v) != len(frames):
             raise Exception(
-                "number of frames for fluid {} ({}) is different from {}".format(
-                    k, len(v), len(frames)
-                )
-            )
+                "number of frames for fluid {} ({}) is different from {}".format(k, len(v), len(frames)))
     if frames is None:
         return
 
@@ -183,14 +180,8 @@ def main():
     output_scenes_dir = os.getenv("OUTPUT_SCENES_DIR")
     output_data_dir = f"{output_scenes_dir}_data"
     splits = 1
-    train_scene_names_list = ["S01"]
+    test_scene_names_list = ["S09", "S10"]
 
-    # Check if the output directory exists and remove it if it does
-    # if os.path.exists(output_data_dir):
-    #     os.removedirs(output_data_dir)
-
-    # Create the output directory
-    # os.makedirs(output_data_dir)   # print(outdir)
     if os.path.exists(output_data_dir):
         shutil.rmtree(output_data_dir)
 
@@ -206,7 +197,7 @@ def main():
     for scenei, scene_dir in enumerate(scene_dirs):
         scene_name = os.path.basename(scene_dir)
         print(f"Scenei: {scene_name}")
-        if scene_name in train_scene_names_list:
+        if scene_name not in test_scene_names_list:
             output_data_trainval = train_model_data
         else:
             output_data_trainval = valid_model_data
