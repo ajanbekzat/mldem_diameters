@@ -67,7 +67,7 @@ def mfix_numpy_from_bgeo(path):
     # loop over all data arrays
     for i in range(point_data.GetNumberOfArrays()):
         feat_name = point_data.GetArrayName(i)
-        print(feat_name)
+        # print(feat_name)
         if(feat_name=='Diameter' or feat_name=='radius'):
             diam=point_data.GetArray(i)
         if(feat_name == 'Density' or feat_name=='density'):
