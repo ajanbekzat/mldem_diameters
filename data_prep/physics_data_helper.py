@@ -1,9 +1,10 @@
 """Helper functions for reading and writing simulation data"""
 import os
 import re
-import vtk
 from glob import glob
+
 import numpy as np
+import vtk
 
 
 def mfixomg_numpy_from_bgeo(path):
@@ -65,11 +66,13 @@ def mfix_numpy_from_bgeo(path):
     rho_arr = np.empty((n))
     # loop over all data arrays
     for i in range(point_data.GetNumberOfArrays()):
-        if(point_data.GetArrayName(i)=='Diameter'):
-            diam=point_data.GetArray(i)        
-        if(point_data.GetArrayName(i)=='Density'):
-            rou=point_data.GetArray(i)        
-        if(point_data.GetArrayName(i)=='Velocity'):
+        feat_name = point_data.GetArrayName(i)
+        print(feat_name)
+        if(feat_name=='Diameter' or feat_name=='radius'):
+            diam=point_data.GetArray(i)
+        if(feat_name == 'Density' or feat_name=='density'):
+            rou=point_data.GetArray(i)
+        if(feat_name=='Velocity' or feat_name=='v'):
             vel=point_data.GetArray(i)
   
     #get xyz
@@ -181,4 +184,3 @@ def write_bgeo_from_numpy(outpath, pos_arr, vel_arr):
         p.set(velocity_attr, idx, vel_arr[i].astype(float))
 
     partio.write(outpath, p)
-
